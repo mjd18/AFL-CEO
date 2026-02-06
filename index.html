@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SVG → PNG Converter</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Ctext y=%2748%27 font-size=%2748%27%3E%F0%9F%96%BC%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #22c55e;
+      --accent-2: #16a34a;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --border: #374151;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(circle at top, #1e293b 0%, var(--bg) 45%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 1100px;
+      margin: 28px auto;
+      padding: 0 16px 32px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.8rem;
+    }
+
+    .sub {
+      color: var(--muted);
+      margin-bottom: 20px;
+      line-height: 1.4;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .dropzone {
+      border: 2px dashed #4b5563;
+      border-radius: var(--radius);
+      min-height: 130px;
+      display: grid;
+      place-content: center;
+      text-align: center;
+      padding: 16px;
+      transition: 0.2s ease;
+      background: rgba(17, 24, 39, 0.5);
+    }
+
+    .dropzone.dragover {
+      border-color: #4ade80;
+      background: rgba(34, 197, 94, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .btn {
+      border: 1px solid var(--border);
+      background: #111827;
+      color: var(--text);
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 0.92rem;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+
+    .btn:hover:not(:disabled) {
+      border-color: #6b7280;
+      transform: translateY(-1px);
+    }
+
+    .btn.primary {
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      border-color: #15803d;
+      color: #062a11;
+      font-weight: 700;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 12px;
+    }
+
+    .control-group {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      background: rgba(17,24,39,0.6);
+    }
+
+    .control-group h3 {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+      color: #f3f4f6;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .inline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #4b5563;
+      border-radius: 8px;
+      background: #0b1220;
+      color: var(--text);
+    }
+
+    input[type="number"] { max-width: 110px; }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 900px;
+      background: rgba(17,24,39,0.5);
+    }
+
+    th, td {
+      border-bottom: 1px solid rgba(55,65,81,0.7);
+      padding: 9px;
+      text-align: left;
+      font-size: 0.9rem;
+      vertical-align: middle;
+    }
+
+    th { color: #d1d5db; background: rgba(31,41,55,0.7); }
+
+    .thumb {
+      width: 48px;
+      height: 48px;
+      border: 1px solid #4b5563;
+      border-radius: 8px;
+      object-fit: contain;
+      background: linear-gradient(45deg, #1f2937 25%, #111827 25%, #111827 50%, #1f2937 50%, #1f2937 75%, #111827 75%);
+      background-size: 12px 12px;
+    }
+
+    .status { font-weight: 700; }
+    .status.ready { color: #93c5fd; }
+    .status.converting { color: var(--warn); }
+    .status.done { color: #4ade80; }
+    .status.error { color: var(--danger); }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .left-actions, .right-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .progress {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .notice {
+      margin-top: 10px;
+      font-size: 0.85rem;
+      color: #fcd34d;
+      line-height: 1.3;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>SVG → PNG Converter</h1>
+    <div class="sub">Convert SVG files into PNG images directly in your browser. No uploads, no server, fully local processing.</div>
+
+    <div class="panel">
+      <div id="dropzone" class="dropzone" aria-label="Drop SVG files here">
+        <div>
+          <p><strong>Drag & drop SVG files here</strong></p>
+          <p>or</p>
+          <button id="chooseBtn" class="btn primary" type="button">Choose files</button>
+          <input id="fileInput" type="file" accept=".svg,image/svg+xml" multiple class="hidden" />
+        </div>
+      </div>
+      <div class="notice">Note: SVGs that depend on external fonts/images may render differently between machines.</div>
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <div class="control-group">
+          <h3>Size</h3>
+          <label class="inline"><input type="radio" name="sizeMode" value="original" checked /> Keep original dimensions</label>
+          <label class="inline"><input type="radio" name="sizeMode" value="custom" /> Custom width/height</label>
+          <div class="inline">
+            <label>Width <input id="customWidth" type="number" min="1" placeholder="auto" disabled /></label>
+            <label>Height <input id="customHeight" type="number" min="1" placeholder="auto" disabled /></label>
+          </div>
+          <label class="inline"><input id="lockAspect" type="checkbox" checked /> Lock aspect ratio</label>
+        </div>
+
+        <div class="control-group">
+          <h3>Scale & Background</h3>
+          <label>Scale multiplier
+            <select id="scaleSelect">
+              <option value="1">1x</option>
+              <option value="2">2x</option>
+              <option value="3">3x</option>
+              <option value="4">4x</option>
+            </select>
+          </label>
+          <label class="inline"><input type="radio" name="bgMode" value="transparent" checked /> Transparent</label>
+          <div class="inline">
+            <label class="inline"><input type="radio" name="bgMode" value="color" /> Solid color</label>
+            <input id="bgColor" type="color" value="#ffffff" disabled />
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3>Filename</h3>
+          <label class="inline"><input type="radio" name="filenameMode" value="keep" checked /> Keep name</label>
+          <label class="inline"><input type="radio" name="filenameMode" value="suffix" /> Add suffix</label>
+          <input id="suffixInput" type="text" value="_png" disabled />
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><input id="selectAll" type="checkbox" /></th>
+              <th>Preview</th>
+              <th>Filename</th>
+              <th>Detected dimensions</th>
+              <th>Status</th>
+              <th>Error</th>
+              <th>Download</th>
+            </tr>
+          </thead>
+          <tbody id="fileTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="actions">
+        <div class="left-actions">
+          <button id="convertSelectedBtn" class="btn primary" type="button">Convert selected</button>
+          <button id="convertAllBtn" class="btn" type="button">Convert all</button>
+          <button id="downloadZipBtn" class="btn" type="button" disabled>Download all as ZIP</button>
+        </div>
+        <div id="progressText" class="progress">0/0 converted</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    /*
+      How it works:
+      1) Users add one or more SVG files via drag-drop or file picker.
+      2) Each SVG is parsed for dimensions using width/height, then viewBox, else fallback default.
+      3) On convert, SVG text is turned into an object URL and loaded into an Image element.
+      4) The image is drawn onto a canvas with selected size/scale/background settings.
+      5) canvas.toBlob("image/png") produces PNG blobs for per-file download or ZIP export.
+    */
+
+    const MAX_PIXELS = 40_000_000;
+    const DEFAULT_SIZE = 512;
+    const filesState = [];
+
+    const el = {
+      dropzone: document.getElementById('dropzone'),
+      chooseBtn: document.getElementById('chooseBtn'),
+      fileInput: document.getElementById('fileInput'),
+      tableBody: document.getElementById('fileTableBody'),
+      selectAll: document.getElementById('selectAll'),
+      convertSelectedBtn: document.getElementById('convertSelectedBtn'),
+      convertAllBtn: document.getElementById('convertAllBtn'),
+      downloadZipBtn: document.getElementById('downloadZipBtn'),
+      progressText: document.getElementById('progressText'),
+      customWidth: document.getElementById('customWidth'),
+      customHeight: document.getElementById('customHeight'),
+      lockAspect: document.getElementById('lockAspect'),
+      scaleSelect: document.getElementById('scaleSelect'),
+      bgColor: document.getElementById('bgColor'),
+      suffixInput: document.getElementById('suffixInput')
+    };
+
+    function sanitizeFilename(name) {
+      return name
+        .replace(/[\\/:*?"<>|]/g, '_')
+        .replace(/\s+/g, ' ')
+        .trim() || 'file';
+    }
+
+    function getBaseName(filename) {
+      const idx = filename.lastIndexOf('.');
+      return idx > 0 ? filename.slice(0, idx) : filename;
+    }
+
+    /** Parse SVG dimensions from SVG text. */
+    function parseSvgDimensions(svgText) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(svgText, 'image/svg+xml');
+      if (doc.querySelector('parsererror')) {
+        throw new Error('Invalid SVG/XML structure.');
+      }
+      const svg = doc.documentElement;
+      if (!svg || svg.nodeName.toLowerCase() !== 'svg') {
+        throw new Error('No <svg> root element found.');
+      }
+
+      const parseLength = (val) => {
+        if (!val) return null;
+        const trimmed = String(val).trim();
+        const match = trimmed.match(/^([0-9]*\.?[0-9]+)\s*(px)?$/i);
+        return match ? Number(match[1]) : null;
+      };
+
+      const widthAttr = parseLength(svg.getAttribute('width'));
+      const heightAttr = parseLength(svg.getAttribute('height'));
+      if (widthAttr && heightAttr) {
+        return { width: widthAttr, height: heightAttr, warnedFallback: false };
+      }
+
+      const viewBox = svg.getAttribute('viewBox');
+      if (viewBox) {
+        const parts = viewBox.trim().split(/[\s,]+/).map(Number);
+        if (parts.length === 4 && Number.isFinite(parts[2]) && Number.isFinite(parts[3]) && parts[2] > 0 && parts[3] > 0) {
+          return { width: parts[2], height: parts[3], warnedFallback: false };
+        }
+      }
+
+      return { width: DEFAULT_SIZE, height: DEFAULT_SIZE, warnedFallback: true };
+    }
+
+    function getSettings() {
+      const sizeMode = document.querySelector('input[name="sizeMode"]:checked').value;
+      const bgMode = document.querySelector('input[name="bgMode"]:checked').value;
+      const filenameMode = document.querySelector('input[name="filenameMode"]:checked').value;
+      return {
+        sizeMode,
+        customWidth: Number(el.customWidth.value) || null,
+        customHeight: Number(el.customHeight.value) || null,
+        lockAspect: el.lockAspect.checked,
+        scale: Number(el.scaleSelect.value),
+        bgTransparent: bgMode === 'transparent',
+        bgColor: el.bgColor.value,
+        filenameMode,
+        suffix: el.suffixInput.value || '_png'
+      };
+    }
+
+    /** Convert SVG text into PNG blob using canvas. */
+    function svgToPngBlob(svgText, options) {
+      return new Promise((resolve, reject) => {
+        const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
+        const svgUrl = URL.createObjectURL(svgBlob);
+        const img = new Image();
+
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = options.outputWidth;
+            canvas.height = options.outputHeight;
+            const ctx = canvas.getContext('2d');
+
+            if (!options.bgTransparent) {
+              ctx.fillStyle = options.bgColor;
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+              URL.revokeObjectURL(svgUrl);
+              if (!blob) {
+                reject(new Error('PNG export failed (canvas.toBlob returned null).'));
+                return;
+              }
+              resolve(blob);
+            }, 'image/png');
+          } catch (err) {
+            URL.revokeObjectURL(svgUrl);
+            reject(err);
+          }
+        };
+
+        img.onerror = () => {
+          URL.revokeObjectURL(svgUrl);
+          reject(new Error('Unable to render SVG in browser image pipeline.'));
+        };
+
+        img.src = svgUrl;
+      });
+    }
+
+    /** Trigger download of a Blob with a filename. */
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    /** Build and download ZIP archive containing converted PNG files. */
+    async function downloadZip(pngFiles) {
+      if (!window.JSZip) {
+        throw new Error('JSZip failed to load.');
+      }
+      const zip = new JSZip();
+      for (const f of pngFiles) {
+        zip.file(f.filename, f.blob);
+      }
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      downloadBlob(zipBlob, 'converted_pngs.zip');
+    }
+
+    function computeOutputSize(item, settings) {
+      let width = item.baseWidth;
+      let height = item.baseHeight;
+
+      if (settings.sizeMode === 'custom') {
+        const cw = settings.customWidth;
+        const ch = settings.customHeight;
+
+        if (cw && ch) {
+          width = cw;
+          height = ch;
+        } else if (cw && settings.lockAspect) {
+          width = cw;
+          height = Math.round((cw / item.baseWidth) * item.baseHeight);
+        } else if (ch && settings.lockAspect) {
+          height = ch;
+          width = Math.round((ch / item.baseHeight) * item.baseWidth);
+        } else if (cw) {
+          width = cw;
+        } else if (ch) {
+          height = ch;
+        }
+      }
+
+      width = Math.max(1, Math.round(width * settings.scale));
+      height = Math.max(1, Math.round(height * settings.scale));
+      return { width, height };
+    }
+
+    function updateControlsState() {
+      const sizeMode = document.querySelector('input[name="sizeMode"]:checked').value;
+      const isCustom = sizeMode === 'custom';
+      el.customWidth.disabled = !isCustom;
+      el.customHeight.disabled = !isCustom;
+
+      const bgMode = document.querySelector('input[name="bgMode"]:checked').value;
+      el.bgColor.disabled = bgMode !== 'color';
+
+      const filenameMode = document.querySelector('input[name="filenameMode"]:checked').value;
+      el.suffixInput.disabled = filenameMode !== 'suffix';
+    }
+
+    function renderTable() {
+      el.tableBody.innerHTML = '';
+      filesState.forEach((item) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><input type="checkbox" data-id="${item.id}" class="file-check" ${item.selected ? 'checked' : ''}></td>
+          <td><img class="thumb" src="${item.previewUrl}" alt="preview"></td>
+          <td>${item.filename}</td>
+          <td>${item.baseWidth} × ${item.baseHeight}${item.warnedFallback ? ' (fallback)' : ''}</td>
+          <td><span class="status ${item.statusClass}">${item.status}</span></td>
+          <td>${item.error || ''}</td>
+          <td>${item.pngBlob ? `<button class="btn" data-download="${item.id}">Download PNG</button>` : ''}</td>
+        `;
+        el.tableBody.appendChild(tr);
+      });
+      updateProgress();
+      el.downloadZipBtn.disabled = filesState.filter(f => f.pngBlob).length === 0;
+    }
+
+    function updateProgress() {
+      const done = filesState.filter(f => f.status === 'Done').length;
+      el.progressText.textContent = `${done}/${filesState.length} converted`;
+    }
+
+    async function addFiles(fileList) {
+      for (const file of fileList) {
+        const isSvg = file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg');
+        if (!isSvg) {
+          filesState.push({
+            id: crypto.randomUUID(),
+            selected: false,
+            filename: sanitizeFilename(file.name),
+            baseWidth: '-',
+            baseHeight: '-',
+            warnedFallback: false,
+            status: 'Error',
+            statusClass: 'error',
+            error: 'Rejected: not an SVG file.',
+            previewUrl: '',
+            pngBlob: null,
+            svgText: null
+          });
+          continue;
+        }
+
+        const item = {
+          id: crypto.randomUUID(),
+          selected: true,
+          filename: sanitizeFilename(file.name),
+          baseWidth: DEFAULT_SIZE,
+          baseHeight: DEFAULT_SIZE,
+          warnedFallback: false,
+          status: 'Ready',
+          statusClass: 'ready',
+          error: '',
+          previewUrl: '',
+          pngBlob: null,
+          svgText: ''
+        };
+
+        try {
+          const svgText = await file.text();
+          item.svgText = svgText;
+          const dim = parseSvgDimensions(svgText);
+          item.baseWidth = dim.width;
+          item.baseHeight = dim.height;
+          item.warnedFallback = dim.warnedFallback;
+          if (dim.warnedFallback) {
+            item.error = 'Missing width/height and viewBox. Using 512×512 fallback.';
+          }
+
+          const previewBlob = new Blob([svgText], { type: 'image/svg+xml' });
+          item.previewUrl = URL.createObjectURL(previewBlob);
+        } catch (err) {
+          item.status = 'Error';
+          item.statusClass = 'error';
+          item.error = err.message || 'Failed to parse SVG.';
+        }
+
+        filesState.push(item);
+      }
+      renderTable();
+    }
+
+    function buildOutputFilename(item, settings) {
+      const base = sanitizeFilename(getBaseName(item.filename));
+      const suffix = settings.filenameMode === 'suffix' ? settings.suffix : '';
+      return `${base}${suffix}.png`;
+    }
+
+    async function convertItems(items) {
+      const settings = getSettings();
+      let any = false;
+
+      for (const item of items) {
+        if (!item.svgText) continue;
+        any = true;
+        item.status = 'Converting';
+        item.statusClass = 'converting';
+        item.error = '';
+        renderTable();
+
+        try {
+          const out = computeOutputSize(item, settings);
+          if (out.width * out.height > MAX_PIXELS) {
+            throw new Error(`Blocked: output too large (${out.width}×${out.height}). Max is 40 megapixels.`);
+          }
+
+          const blob = await svgToPngBlob(item.svgText, {
+            outputWidth: out.width,
+            outputHeight: out.height,
+            bgTransparent: settings.bgTransparent,
+            bgColor: settings.bgColor
+          });
+
+          item.pngBlob = blob;
+          item.outputFilename = buildOutputFilename(item, settings);
+          item.status = 'Done';
+          item.statusClass = 'done';
+        } catch (err) {
+          item.status = 'Error';
+          item.statusClass = 'error';
+          item.error = err.message || 'Conversion failed.';
+        }
+        renderTable();
+      }
+
+      if (!any) {
+        alert('No convertible SVG files selected.');
+      }
+    }
+
+    function getSelectedItems() {
+      return filesState.filter(f => f.selected);
+    }
+
+    el.chooseBtn.addEventListener('click', () => el.fileInput.click());
+    el.fileInput.addEventListener('change', (e) => addFiles(e.target.files || []));
+
+    ['dragenter', 'dragover'].forEach(evt => {
+      el.dropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        el.dropzone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(evt => {
+      el.dropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        el.dropzone.classList.remove('dragover');
+      });
+    });
+
+    el.dropzone.addEventListener('drop', (e) => {
+      addFiles(e.dataTransfer.files || []);
+    });
+
+    document.querySelectorAll('input[name="sizeMode"], input[name="bgMode"], input[name="filenameMode"]').forEach(input => {
+      input.addEventListener('change', updateControlsState);
+    });
+
+    el.selectAll.addEventListener('change', () => {
+      filesState.forEach(f => { if (f.svgText) f.selected = el.selectAll.checked; });
+      renderTable();
+    });
+
+    el.tableBody.addEventListener('change', (e) => {
+      if (e.target.classList.contains('file-check')) {
+        const item = filesState.find(f => f.id === e.target.dataset.id);
+        if (item) item.selected = e.target.checked;
+      }
+    });
+
+    el.tableBody.addEventListener('click', (e) => {
+      const id = e.target.getAttribute('data-download');
+      if (!id) return;
+      const item = filesState.find(f => f.id === id);
+      if (!item || !item.pngBlob) return;
+      downloadBlob(item.pngBlob, item.outputFilename || 'converted.png');
+    });
+
+    el.convertSelectedBtn.addEventListener('click', async () => {
+      await convertItems(getSelectedItems());
+    });
+
+    el.convertAllBtn.addEventListener('click', async () => {
+      await convertItems(filesState.filter(f => f.svgText));
+    });
+
+    el.downloadZipBtn.addEventListener('click', async () => {
+      const pngFiles = filesState
+        .filter(f => f.pngBlob)
+        .map(f => ({ filename: f.outputFilename || `${getBaseName(f.filename)}.png`, blob: f.pngBlob }));
+      if (!pngFiles.length) {
+        alert('No PNG files available. Convert files first.');
+        return;
+      }
+      try {
+        await downloadZip(pngFiles);
+      } catch (err) {
+        alert(err.message || 'ZIP creation failed.');
+      }
+    });
+
+    updateControlsState();
+  </script>
+</body>
+</html>
